@@ -156,9 +156,23 @@ func (d *Local) FileInfoToObj(ctx context.Context, f fs.FileInfo, reqPath string
 	if d.Thumbnail {
 		typeName := utils.GetFileType(f.Name())
 		if typeName == conf.IMAGE || typeName == conf.VIDEO {
-			thumb = common.GetApiUrl(ctx) + stdpath.Join("/d", reqPath, f.Name())
+			targetName := f.Name()
+			// Prefer same-named image as video preview if present
+			if typeName == conf.VIDEO {
+				base := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name()))
+				// common image extensions
+				candidates := []string{".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}
+				for _, ext := range candidates {
+					candidate := base + ext
+					if utils.Exists(filepath.Join(fullPath, candidate)) {
+						targetName = candidate
+						break
+					}
+				}
+			}
+			thumb = common.GetApiUrl(ctx) + stdpath.Join("/d", reqPath, targetName)
 			thumb = utils.EncodePath(thumb, true)
-			thumb += "?type=thumb&sign=" + sign.Sign(stdpath.Join(reqPath, f.Name()))
+			thumb += "?type=thumb&sign=" + sign.Sign(stdpath.Join(reqPath, targetName))
 		}
 	}
 	isFolder := f.IsDir() || isSymlinkDir(f, fullPath)
